@@ -12,7 +12,7 @@ class ColorExtractor:
         self.output_width = w
         self.tolerance = tolerance
         self.limit = color_limit
-        self.model = YOLO('best_m.pt')
+        self.model = YOLO('best_n.pt')
         self.model_input_size = 640
 
     def predict(self, img: np.array):
