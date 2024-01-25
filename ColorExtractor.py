@@ -12,7 +12,7 @@ class ColorExtractor:
         self.output_width = w
         self.tolerance = tolerance
         self.limit = color_limit
-        self.model = YOLO('best_n.pt')
+        self.model = YOLO('best_8n_20ep.pt')
         self.model_input_size = 640
 
     def predict(self, img: np.array):
@@ -93,12 +93,15 @@ class ColorExtractor:
 
 # Debug
 if __name__ == "__main__":
-    cer = ColorExtractor(color_limit=8)
+    cer = ColorExtractor(color_limit=4)
 
-    img = cv2.imread('/Users/jeonghyojun/api/pet-color-api/uploads/1641769858708.png')
+    img = cv2.imread('/Users/jeonghyojun/api/pet-color-api/uploads/dog-waiting-in-the-veterinarian-office.png')
 
     pred = cer.predict(img)
     mask = cer.getMask(img, pred)
     thumbnail = cer.getThumbnail(img, mask, pred)
-
     clr_info = cer.extractFromImageMaskPair(img, mask)
+
+    cv2.imshow('temp', thumbnail)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
