@@ -12,7 +12,7 @@ class ColorExtractor:
         self.output_width = w
         self.tolerance = tolerance
         self.limit = color_limit
-        self.model = YOLO('best_8n_20ep.pt')
+        self.model = YOLO('best_n_20ep.pt')
         self.model_input_size = 640
 
     def predict(self, img: np.array):
@@ -61,7 +61,13 @@ class ColorExtractor:
 
         return hexs
 
-    def getThumbnail(self, img, mask, pred):
+    def getThumbnail(self, img, mask, pred, mode=0, bbox=True):
+        """
+        mode
+        - 0: mask object fluorescent (opaque green)
+        - 1: mask background (transparent black)
+        - 2: mask background (transparent white)
+        """
         img_h, img_w, _ = img.shape
 
         # mask resize
@@ -69,24 +75,36 @@ class ColorExtractor:
         _, mask = cv2.threshold(mask, 0.5, 1, type=cv2.THRESH_BINARY)
         mask = mask.astype('uint8')
 
-        if True:  # 형광색
+        if mode == 0:  # fluorescent mask (opaque green)
             fluorescent_color = (0, 255, 0)
             transparency = 0.25
 
             hli = np.copy(img)
             hli[mask > 0] = ((1 - transparency) * hli[mask > 0] + transparency * np.array(fluorescent_color)).astype(np.uint8)
 
-        else:  # 배경 삭제
+        elif mode == 1:
             mask = np.expand_dims(mask, axis=-1)
             hli = img * mask
 
-        nx, ny, nxx, nyy = pred[0].boxes.xyxyn.cpu().numpy()[0]
+        elif mode == 2:
+            mask = np.expand_dims(mask, axis=-1)
+            mask -= 1
 
-        pt1 = (int(nx*img_w), int(ny*img_h))
-        pt2 = (int(nxx*img_w), int(nyy*img_h))
-        clr = (0, 255, 0)
+            img = img.astype('uint16')
+            mask = mask.astype('uint16')
 
-        cv2.rectangle(hli, pt1, pt2, clr, 2)
+            hli = img + mask
+            hli = np.clip(hli, 0, 255)
+            hli = hli.astype('uint8')
+
+        if bbox:
+            nx, ny, nxx, nyy = pred[0].boxes.xyxyn.cpu().numpy()[0]
+
+            pt1 = (int(nx*img_w), int(ny*img_h))
+            pt2 = (int(nxx*img_w), int(nyy*img_h))
+            clr = (0, 255, 0)
+
+            cv2.rectangle(hli, pt1, pt2, clr, 2)
 
         return hli
 
@@ -95,11 +113,12 @@ class ColorExtractor:
 if __name__ == "__main__":
     cer = ColorExtractor(color_limit=4)
 
-    img = cv2.imread('/Users/jeonghyojun/api/pet-color-api/uploads/dog-waiting-in-the-veterinarian-office.png')
+    # img = cv2.imread('/Users/jeonghyojun/api/pet-color-api/uploads/dog-waiting-in-the-veterinarian-office.png')
+    img = cv2.imread('/Users/jeonghyojun/api/pet-color-api/uploads/IMG_4340.png')
 
     pred = cer.predict(img)
     mask = cer.getMask(img, pred)
-    thumbnail = cer.getThumbnail(img, mask, pred)
+    thumbnail = cer.getThumbnail(img, mask, pred, mode=2, bbox=False)
     clr_info = cer.extractFromImageMaskPair(img, mask)
 
     cv2.imshow('temp', thumbnail)
